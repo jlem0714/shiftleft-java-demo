@@ -27,14 +27,14 @@ public class AccountController {
     @GetMapping("/account")
     public Iterable<Account> getAccountList(HttpServletResponse response, HttpServletRequest request) {
         response.addHeader("test-header-detection", new Account().toString());
-        log.info("Account Data is {}", this.accountRepository.findOne(1l).toString());
+        //log.info("Account Data is {}", this.accountRepository.findOne(1l).toString());
         return this.accountRepository.findAll();
     }
 
     @PostMapping("/account")
     public Account createAccount(Account account) {
         this.accountRepository.save(account);
-        log.info("Account Data is {}", account.toString());
+        //log.info("Account Data is {}", account.toString());
         return account;
     }
 
