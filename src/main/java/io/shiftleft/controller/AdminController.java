@@ -7,10 +7,13 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.xml.bind.DatatypeConverter;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Controller;
 import org.springframework.util.FileCopyUtils;
@@ -28,23 +31,24 @@ public class AdminController {
   private String fail = "redirect:/";
 
   // helper
-  private boolean isAdmin(String auth)
+private boolean isAdmin(String auth, String authHash)
   {
     try {
+      if (authHash == null) {
+        return false;
+      }
+      MessageDigest md = MessageDigest.getInstance("SHA1");
+      md.update(auth.getBytes());
+      byte[] digest = md.digest();
+      String calcHash = DatatypeConverter.printHexBinary(digest).toUpperCase();
+      if (!calcHash.equals(authHash)) {
+        return false;
+      }
       ByteArrayInputStream bis = new ByteArrayInputStream(Base64.getDecoder().decode(auth));
       ObjectInputStream objectInputStream = new ObjectInputStream(bis);
-      Object authToken = objectInputStream.readObject();
-      return ((AuthToken) authToken).isAdmin();
-    } catch (Exception ex) {
-      System.out.println(" cookie cannot be deserialized: "+ex.getMessage());
-      return false;
-    }
-  }
+      AuthToken authToken = new AuthToken(objectInputStream.readInt());
+      return authToken.isAdmin();
 
-  //
-  @RequestMapping(value = "/admin/printSecrets", method = RequestMethod.POST)
-  public String doPostPrintSecrets(HttpServletResponse response, HttpServletRequest request) {
-    return fail;
   }
 
 
@@ -65,7 +69,9 @@ public class AdminController {
       byte[] bdata = FileCopyUtils.copyToByteArray(cpr.getInputStream());
       response.getOutputStream().println(new String(bdata, StandardCharsets.UTF_8));
       return null;
-    } catch (IOException ex) {
+    String authHash = request.getSession().getAttribute("authHash").toString();
+if(!isAdmin(authToken, authHash)) {
+
       ex.printStackTrace();
       // redirect to /
       return fail;
@@ -96,7 +102,7 @@ public class AdminController {
 
       // split password=value
       String[] pass = password.split("=");
-      if(pass.length!=2) {
+if(isAdmin(auth, null)) {
         return fail;
       }
       // compare pass
@@ -116,13 +122,15 @@ public class AdminController {
       }
       return fail;
     }
-    catch (Exception ex)
-    {
-      ex.printStackTrace();
-      // no succ == fail
+MessageDigest md = MessageDigest.getInstance("SHA1");
+md.update(cookieValue.getBytes());
+byte[] digest = md.digest();
+String authHash = DatatypeConverter.printHexBinary(digest).toUpperCase();
+
       return fail;
     }
-  }
+// Store the hash of the authToken so that we can check them later
+request.getSession().setAttribute("authHash",authHash);
 
   /**
    * Same as POST but just a redirect
